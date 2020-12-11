@@ -3,13 +3,13 @@ import {Store} from './store';
 export const BestBuy: Store = {
 	labels: {
 		inStock: {
-			container: '[data-sticky-media-gallery] .fulfillment-add-to-cart-button',
+			container:
+				'[data-sticky-media-gallery] .fulfillment-add-to-cart-button',
 			text: ['add to cart']
 		},
 		maxPrice: {
 			container:
-				'[data-sticky-media-gallery] .priceView-price .priceView-hero-price span',
-			euroFormat: false
+				'[data-sticky-media-gallery] .priceView-price .priceView-hero-price span'
 		}
 	},
 	links: [
@@ -444,6 +444,13 @@ export const BestBuy: Store = {
 			series: 'rx6800xt',
 			url:
 				'https://www.bestbuy.com/site/xfx-merc-319-amd-radeon-rx-6800xt-16gb-gddr6-pci-express-4-0-gaming-graphics-card-black/6442585.p?skuId=6442585'
+		},
+		{
+			brand: 'xfx',
+			model: 'amd reference',
+			series: 'rx6900xt',
+			url:
+				'https://www.bestbuy.com/site/xfx-amd-radeon-rx-6900-xt-16gb-gddr6-pci-express-4-0-gaming-graphics-card-black/6444358.p?skuId=6444358'
 		},
 		{
 			brand: 'corsair',

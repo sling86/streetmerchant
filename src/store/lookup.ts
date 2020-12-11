@@ -126,10 +126,10 @@ async function lookup(browser: Browser, store: Store) {
 	}
 
 	if (store.linksBuilder) {
-		logger.info(`[${store.name}] Running linksBuilder...`);
 		const lastRunTime = linkBuilderLastRunTimes[store.name] ?? -1;
 		const ttl = store.linksBuilder.ttl ?? Number.MAX_SAFE_INTEGER;
 		if (lastRunTime === -1 || Date.now() - lastRunTime > ttl) {
+			logger.info(`[${store.name}] Running linksBuilder...`);
 			try {
 				await fetchLinks(store, browser);
 				linkBuilderLastRunTimes[store.name] = Date.now();
@@ -152,16 +152,18 @@ async function lookup(browser: Browser, store: Store) {
 
 		const proxy = nextProxy(store);
 
-		const useAdBlock = !config.browser.lowBandwidth && !store.disableAdBlocker;
+		const useAdBlock =
+			!config.browser.lowBandwidth && !store.disableAdBlocker;
 		const customContext = config.browser.isIncognito;
 
 		const context = customContext
 			? await browser.createIncognitoBrowserContext()
 			: browser.defaultBrowserContext();
 		const page = await context.newPage();
+		await page.setRequestInterception(true);
 
 		page.setDefaultNavigationTimeout(config.page.timeout);
-		await page.setUserAgent(getRandomUserAgent());
+		await page.setUserAgent(await getRandomUserAgent());
 
 		let adBlockRequestHandler: any;
 		let pageProxy;
@@ -212,9 +214,9 @@ async function lookup(browser: Browser, store: Store) {
 			statusCode = await lookupCard(browser, store, page, link);
 		} catch (error: unknown) {
 			logger.error(
-				`✖ [${store.name}] ${link.brand} ${link.series} ${link.model} - ${
-					(error as Error).message
-				}`
+				`✖ [${store.name}] ${link.brand} ${link.series} ${
+					link.model
+				} - ${(error as Error).message}`
 			);
 			const client = await page.target().createCDPSession();
 			await client.send('Network.clearBrowserCookies');
@@ -266,7 +268,9 @@ async function lookupCard(
 
 	if (await lookupCardInStock(store, page, link)) {
 		const givenUrl =
-			link.cartUrl && config.store.autoAddToCart ? link.cartUrl : link.url;
+			link.cartUrl && config.store.autoAddToCart
+				? link.cartUrl
+				: link.url;
 		logger.info(`${Print.inStock(link, store, true)}\n${givenUrl}`);
 
 		if (config.browser.open) {
@@ -313,7 +317,11 @@ async function lookupCardInStock(store: Store, page: Page, link: Link) {
 
 	if (store.labels.bannedSeller) {
 		if (
-			await pageIncludesLabels(page, store.labels.bannedSeller, baseOptions)
+			await pageIncludesLabels(
+				page,
+				store.labels.bannedSeller,
+				baseOptions
+			)
 		) {
 			logger.warn(Print.bannedSeller(link, store, true));
 			return false;
@@ -339,6 +347,15 @@ async function lookupCardInStock(store: Store, page: Page, link: Link) {
 	// ) {
 	// 	return store.realTimeInventoryLookup(link.itemNumber);
 	// }
+
+	if (store.labels.outOfStock) {
+		if (
+			await pageIncludesLabels(page, store.labels.outOfStock, baseOptions)
+		) {
+			logger.info(Print.outOfStock(link, store, true));
+			return false;
+		}
+	}
 
 	if (store.labels.inStock) {
 		const options = {
@@ -366,19 +383,14 @@ async function lookupCardInStock(store: Store, page: Page, link: Link) {
 		}
 	}
 
-	if (store.labels.outOfStock) {
-		if (await pageIncludesLabels(page, store.labels.outOfStock, baseOptions)) {
-			logger.info(Print.outOfStock(link, store, true));
-			return false;
-		}
-	}
-
 	return true;
 }
 
 export async function tryLookupAndLoop(browser: Browser, store: Store) {
 	if (!browser.isConnected()) {
-		logger.debug(`[${store.name}] Ending this loop as browser is disposed...`);
+		logger.debug(
+			`[${store.name}] Ending this loop as browser is disposed...`
+		);
 		return;
 	}
 

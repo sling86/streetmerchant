@@ -4,7 +4,7 @@ import {config} from '../config';
 import {logger} from '../logger';
 
 const discord = config.notifications.discord;
-const {notifyGroup, webhooks} = discord;
+const {notifyGroup, webhooks, notifyGroupSeries} = discord;
 
 function getIdAndToken(webhook: string) {
 	const match = /.*\/webhooks\/(\d+)\/(.+)/.exec(webhook);
@@ -31,7 +31,7 @@ export function sendDiscordMessage(link: Link, store: Store) {
 						'> provided by [streetmerchant](https://github.com/jef/streetmerchant) with :heart:'
 					)
 					.setThumbnail(
-						'https://raw.githubusercontent.com/jef/streetmerchant/main/media/streetmerchant-square.png'
+						'https://raw.githubusercontent.com/jef/streetmerchant/main/docs/assets/images/streetmerchant-square.png'
 					)
 					.setColor('#52b788')
 					.setTimestamp();
@@ -44,20 +44,35 @@ export function sendDiscordMessage(link: Link, store: Store) {
 				embed.addField('Model', link.model, true);
 				embed.addField('Series', link.series, true);
 
+				embed.setTimestamp();
+
+				let notifyText: string[] = [];
+
+				if (Object.keys(notifyGroupSeries).indexOf(link.series) !== 0) {
+					notifyText = notifyText.concat(
+						notifyGroupSeries[link.series]
+					);
+				} else if (notifyGroup) {
+					notifyText = notifyText.concat(notifyGroup); // If there is no group for the series we
+				}
+
 				const promises = [];
 				for (const webhook of webhooks) {
 					const {id, token} = getIdAndToken(webhook);
 					const client = new Discord.WebhookClient(id, token);
+
 					promises.push({
 						client,
-						message: client.send(notifyGroup.join(' '), {
+						message: client.send(notifyText.join(' '), {
 							embeds: [embed],
 							username: 'streetmerchant'
 						})
 					});
 				}
 
-				(await Promise.all(promises)).forEach(({client}) => client.destroy());
+				(await Promise.all(promises)).forEach(({client}) =>
+					client.destroy()
+				);
 
 				logger.info('✔ discord message sent');
 			} catch (error: unknown) {

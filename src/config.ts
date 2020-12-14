@@ -147,6 +147,14 @@ function envOrNumberMax(
 	return number ?? 0;
 }
 
+function loadProxyList(filename: string) {
+	return readFileSync(`${filename}.proxies`)
+		.toString()
+		.trim()
+		.split('\n')
+		.map((x) => x.trim());
+}
+
 const browser = {
 	isHeadless: envOrBoolean(process.env.HEADLESS),
 	isIncognito: envOrBoolean(process.env.INCOGNITO, false),
@@ -176,7 +184,7 @@ const browser = {
 	userAgent: ''
 };
 
-const docker = envOrBoolean(process.env.DOCKER);
+const docker = envOrBoolean(process.env.DOCKER, false);
 
 const logLevel = envOrString(process.env.LOG_LEVEL, 'info');
 
@@ -384,12 +392,14 @@ const store = {
 
 		let proxyList;
 		try {
-			proxyList = readFileSync(`${name}.proxies`)
-				.toString()
-				.trim()
-				.split('\n')
-				.map((x) => x.trim());
+			proxyList = loadProxyList(name);
 		} catch {}
+
+		if (!proxyList) {
+			try {
+				proxyList = loadProxyList('global');
+			} catch {}
+		}
 
 		return {
 			maxPageSleep: envOrNumberMax(

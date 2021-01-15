@@ -8,9 +8,23 @@ export const Galaxus: Store = {
 			text: ['In den Warenkorb']
 		},
 		maxPrice: {
-			container: '.productDetail .Z1ej',
+			container: '.productDetail .Z1ch',
 			euroFormat: true
-		}
+		},
+		outOfStock: [
+			{
+				container: '.availabilityText',
+				text: [
+					'aktuell nicht lieferbar und kein liefertermin vorhanden'
+				]
+			},
+			{
+				container: '.availabilityText',
+				text: [
+					'der liefertermin ist beim lieferanten in abklärung und wird aktualisiert.'
+				]
+			}
+		]
 	},
 	links: [
 		{

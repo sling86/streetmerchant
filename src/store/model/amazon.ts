@@ -17,6 +17,11 @@ export const Amazon: Store = {
       container: 'body',
       text: ['enter the characters you see below'],
     },
+    captchaHandler: {
+      challenge: '.a-row > img',
+      input: '#captchacharacters',
+      submit: 'button[type="submit"]',
+    },
     inStock: [
       {
         container: '#add-to-cart-button',
@@ -255,6 +260,14 @@ export const Amazon: Store = {
       model: 'xc3 ultra',
       series: '3070',
       url: 'https://www.amazon.com/dp/B08L8L71SM',
+    },
+    {
+      brand: 'evga',
+      cartUrl:
+        'https://www.amazon.com/gp/aws/cart/add.html?ASIN.1=B08WM28PVH&Quantity.1=1',
+      model: 'xc gaming',
+      series: '3060',
+      url: 'https://www.amazon.com/dp/B08WM28PVH',
     },
     {
       brand: 'evga',
@@ -708,6 +721,12 @@ export const Amazon: Store = {
       brand: 'sony',
       cartUrl:
         'https://www.amazon.com/gp/aws/cart/add.html?ASIN.1=B08FC5L3RG&Quantity.1=1',
+      labels: {
+        inStock: {
+          container: '#productTitle',
+          text: ['playstation 5 console'],
+        },
+      },
       model: 'ps5 console',
       series: 'sonyps5c',
       url: 'https://www.amazon.com/dp/B08FC5L3RG',
@@ -722,12 +741,24 @@ export const Amazon: Store = {
     },
     {
       brand: 'microsoft',
+      labels: {
+        inStock: {
+          container: '#productTitle',
+          text: ['Xbox Series X'],
+        },
+      },
       model: 'xbox series x',
       series: 'xboxsx',
       url: 'https://www.amazon.com/dp/B08H75RTZ8',
     },
     {
       brand: 'microsoft',
+      labels: {
+        inStock: {
+          container: '#productTitle',
+          text: ['Xbox Series S'],
+        },
+      },
       model: 'xbox series s',
       series: 'xboxss',
       url: 'https://www.amazon.com/dp/B08G9J44ZN',

@@ -1,10 +1,10 @@
 import {
   Browser,
+  PageEventObject,
   Page,
-  PageEventObj,
-  Request,
-  RespondOptions,
-  Response,
+  HTTPRequest,
+  HTTPResponse,
+  ResponseForRequest,
 } from 'puppeteer';
 import {Link, Store, getStores} from './model';
 import {Print, logger} from '../logger';
@@ -23,7 +23,8 @@ import {fetchLinks} from './fetch-links';
 import {filterStoreLink} from './filter';
 import open from 'open';
 import {processBackoffDelay} from './model/helpers/backoff';
-import {sendNotification} from '../notification';
+import {sendNotification} from '../messaging';
+import {handleCaptchaAsync} from './captcha-handler';
 import useProxy from '@doridian/puppeteer-page-proxy';
 
 const inStock: Record<string, boolean> = {};
@@ -37,21 +38,24 @@ function nextProxy(store: Store) {
 
   if (store.currentProxyIndex === undefined) {
     store.currentProxyIndex = 0;
+  } else {
+    store.currentProxyIndex++;
   }
 
-  store.currentProxyIndex++;
   if (store.currentProxyIndex >= store.proxyList.length) {
     store.currentProxyIndex = 0;
   }
 
-  logger.info(
-    `ℹ [${store.name}] Next proxy index: ${store.currentProxyIndex} / Count: ${store.proxyList.length}`
+  logger.debug(
+    `ℹ [${store.name}] Next proxy index: ${store.currentProxyIndex} / Count: ${
+      store.proxyList.length
+    } (${store.proxyList[store.currentProxyIndex]})`
   );
 
   return store.proxyList[store.currentProxyIndex];
 }
 
-async function handleLowBandwidth(request: Request) {
+async function handleLowBandwidth(request: HTTPRequest) {
   if (!config.browser.lowBandwidth) {
     return false;
   }
@@ -70,7 +74,7 @@ async function handleLowBandwidth(request: Request) {
   return false;
 }
 
-async function handleProxy(request: Request, proxy?: string) {
+async function handleProxy(request: HTTPRequest, proxy?: string) {
   if (!proxy) {
     return false;
   }
@@ -89,7 +93,7 @@ async function handleProxy(request: Request, proxy?: string) {
   return true;
 }
 
-async function handleAdBlock(request: Request, adBlockRequestHandler: any) {
+async function handleAdBlock(request: HTTPRequest, adBlockRequestHandler: any) {
   if (!adBlockRequestHandler) {
     return false;
   }
@@ -109,7 +113,7 @@ async function handleAdBlock(request: Request, adBlockRequestHandler: any) {
       resolve(true);
     };
 
-    const respondFunc = async (response: RespondOptions) => {
+    const respondFunc = async (response: ResponseForRequest) => {
       try {
         await request.respond(response);
       } catch {
@@ -147,7 +151,7 @@ async function handleAdBlock(request: Request, adBlockRequestHandler: any) {
  * because we don't want to get rate limited within the same store.
  *
  * @param browser Puppeteer browser.
- * @param store Vendor of graphics cards.
+ * @param store Vendor of items.
  */
 async function lookup(browser: Browser, store: Store) {
   if (!getStores().has(store.name)) {
@@ -196,7 +200,7 @@ async function lookup(browser: Browser, store: Store) {
     let adBlockRequestHandler: any;
     let pageProxy;
     if (useAdBlock) {
-      const onProxyFunc = (event: keyof PageEventObj, handler: any) => {
+      const onProxyFunc = (event: keyof PageEventObject, handler: any) => {
         if (event !== 'request') {
           page.on(event, handler);
           return;
@@ -250,19 +254,39 @@ async function lookup(browser: Browser, store: Store) {
     let statusCode = 0;
 
     try {
-      statusCode = await lookupCard(browser, store, page, link);
+      statusCode = await lookupIem(browser, store, page, link);
     } catch (error: unknown) {
-      logger.error(
-        `✖ [${store.name}] ${link.brand} ${link.series} ${link.model} - ${
-          (error as Error).message
-        }`
-      );
+      if (store.currentProxyIndex !== undefined && store.proxyList) {
+        const proxy = `${store.currentProxyIndex + 1}/${
+          store.proxyList.length
+        }`;
+        logger.error(
+          `✖ [${proxy}] [${store.name}] ${link.brand} ${link.series} ${
+            link.model
+          } - ${(error as Error).message}`
+        );
+      } else {
+        logger.error(
+          `✖ [${store.name}] ${link.brand} ${link.series} ${link.model} - ${
+            (error as Error).message
+          }`
+        );
+      }
       const client = await page.target().createCDPSession();
       await client.send('Network.clearBrowserCookies');
     }
 
     if (pageProxy) {
       await disableBlockerInPage(pageProxy);
+    }
+
+    if (
+      store.currentProxyIndex !== undefined &&
+      store.proxyList &&
+      store.proxyList?.length > 1
+    ) {
+      const client = await page.target().createCDPSession();
+      await client.send('Network.clearBrowserCookies');
     }
 
     // Must apply backoff before closing the page, e.g. if CloudFlare is
@@ -277,14 +301,14 @@ async function lookup(browser: Browser, store: Store) {
   /* eslint-enable no-await-in-loop */
 }
 
-async function lookupCard(
+async function lookupIem(
   browser: Browser,
   store: Store,
   page: Page,
   link: Link
 ): Promise<number> {
   const givenWaitFor = store.waitUntil ? store.waitUntil : 'networkidle0';
-  const response: Response | null = await page.goto(link.url, {
+  const response: HTTPResponse | null = await page.goto(link.url, {
     waitUntil: givenWaitFor,
   });
 
@@ -295,7 +319,7 @@ async function lookupCard(
     return statusCode;
   }
 
-  if (await lookupCardInStock(store, page, link)) {
+  if (await isItemInStock(store, page, link)) {
     const givenUrl =
       link.cartUrl && config.store.autoAddToCart ? link.cartUrl : link.url;
     logger.info(`${Print.inStock(link, store, true)}\n${givenUrl}`);
@@ -333,7 +357,7 @@ async function handleResponse(
   store: Store,
   page: Page,
   link: Link,
-  response?: Response | null,
+  response?: HTTPResponse | null,
   recursionDepth = 0
 ) {
   if (!response) {
@@ -350,7 +374,7 @@ async function handleResponse(
         if (recursionDepth > 4) {
           logger.warn(Print.recursionLimit(link, store, true));
         } else {
-          const response: Response | null = await page.waitForNavigation({
+          const response: HTTPResponse | null = await page.waitForNavigation({
             waitUntil: 'networkidle0',
           });
           recursionDepth++;
@@ -394,7 +418,11 @@ async function checkIsCloudflare(store: Store, page: Page, link: Link) {
   return false;
 }
 
-async function lookupCardInStock(store: Store, page: Page, link: Link) {
+async function isItemInStock(
+  store: Store,
+  page: Page,
+  link: Link
+): Promise<boolean> {
   const baseOptions: Selector = {
     requireVisible: false,
     selector: store.labels.container ?? 'body',
@@ -404,8 +432,20 @@ async function lookupCardInStock(store: Store, page: Page, link: Link) {
   if (store.labels.captcha) {
     if (await pageIncludesLabels(page, store.labels.captcha, baseOptions)) {
       logger.warn(Print.captcha(link, store, true));
-      await delay(getSleepTime(store));
-      return false;
+      if (config.captchaHandler.service && store.labels.captchaHandler) {
+        logger.debug(`[${store.name}] captcha handler called`);
+        if (!(await handleCaptchaAsync(page, store))) {
+          logger.warn(`[${store.name}] captcha handler failed`);
+          return false;
+        } else {
+          logger.debug(`[${store.name}] captcha handler done, checking item`);
+          return await isItemInStock(store, page, link);
+        }
+      } else {
+        logger.debug(`[${store.name}] captcha handler skipped`);
+        await delay(getSleepTime(store));
+        return false;
+      }
     }
   }
 
@@ -425,25 +465,18 @@ async function lookupCardInStock(store: Store, page: Page, link: Link) {
     }
   }
 
-  if (store.labels.maxPrice) {
-    const maxPrice = config.store.maxPrice.series[link.series];
+  if (link.labels?.inStock) {
+    const options = {
+      ...baseOptions,
+      requireVisible: true,
+      type: 'outerHTML' as const,
+    };
 
-    link.price = await getPrice(page, store.labels.maxPrice, baseOptions);
-
-    if (link.price && link.price > maxPrice && maxPrice > 0) {
-      logger.info(Print.maxPrice(link, store, maxPrice, true));
+    if (!(await pageIncludesLabels(page, link.labels.inStock, options))) {
+      logger.info(Print.outOfStock(link, store, true));
       return false;
     }
   }
-
-  // Fixme: currently causing issues
-  // Do API inventory validation in realtime (no cache) if available
-  // if (
-  // 	store.realTimeInventoryLookup !== undefined &&
-  // 	link.itemNumber !== undefined
-  // ) {
-  // 	return store.realTimeInventoryLookup(link.itemNumber);
-  // }
 
   if (store.labels.inStock) {
     const options = {
@@ -458,15 +491,13 @@ async function lookupCardInStock(store: Store, page: Page, link: Link) {
     }
   }
 
-  if (link.labels?.inStock) {
-    const options = {
-      ...baseOptions,
-      requireVisible: true,
-      type: 'outerHTML' as const,
-    };
+  if (store.labels.maxPrice) {
+    const maxPrice = config.store.maxPrice.series[link.series];
 
-    if (!(await pageIncludesLabels(page, link.labels.inStock, options))) {
-      logger.info(Print.outOfStock(link, store, true));
+    link.price = await getPrice(page, store.labels.maxPrice, baseOptions);
+
+    if (link.price && link.price > maxPrice && maxPrice > 0) {
+      logger.info(Print.maxPrice(link, store, maxPrice, true));
       return false;
     }
   }
@@ -508,7 +539,7 @@ async function runCaptchaDeterrent(browser: Browser, store: Store, page: Page) {
 
     try {
       const givenWaitFor = store.waitUntil ? store.waitUntil : 'networkidle0';
-      const response: Response | null = await page.goto(link.url, {
+      const response: HTTPResponse | null = await page.goto(link.url, {
         waitUntil: givenWaitFor,
       });
       statusCode = await handleResponse(browser, store, page, link, response);

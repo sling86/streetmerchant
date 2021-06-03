@@ -43,6 +43,18 @@ export const Saturn: Store = {
       url: 'https://www.saturn.de/de/product/-2641856.html',
     },
     {
+      brand: 'inno3d',
+      model: 'ichill x3',
+      series: '3060',
+      url: 'https://www.saturn.de/de/product/-2718593.html',
+    },
+    {
+      brand: 'inno3d',
+      model: 'twin x2 oc',
+      series: '3060',
+      url: 'https://www.saturn.de/de/product/-2718594.html',
+    },
+    {
       brand: 'asus',
       model: 'dual',
       series: '3060ti',
@@ -191,6 +203,27 @@ export const Saturn: Store = {
       model: 'gaming x trio',
       series: '3090',
       url: 'https://www.saturn.de/de/product/-2683226.html',
+    },
+    {
+      brand: 'sony',
+      model: 'ps5 console',
+      series: 'sonyps5c',
+      url:
+        'https://www.saturn.de/de/product/_sony-ps5-marvel-s-spider-man-miles-morales-2715827.html',
+    },
+    {
+      brand: 'sony',
+      model: 'ps5 console',
+      series: 'sonyps5c',
+      url:
+        'https://www.saturn.de/de/product/_sony-ps5-marvels-spider-man-miles-morales-ultimate-edition-2715826.html',
+    },
+    {
+      brand: 'sony',
+      model: 'ps5 console',
+      series: 'sonyps5c',
+      url:
+        'https://www.saturn.de/de/product/_sony-ps5-assassins-creed-valhalla-2715828.html',
     },
     {
       brand: 'sony',

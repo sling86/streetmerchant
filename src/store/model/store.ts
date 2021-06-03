@@ -1,4 +1,4 @@
-import {Browser, LoadEvent} from 'puppeteer';
+import {Browser, PuppeteerLifeCycleEvent} from 'puppeteer';
 
 export type Element = {
   container?: string;
@@ -39,12 +39,14 @@ export type Brand =
 export type Series =
   | 'test:series'
   | 'captcha-deterrent'
+  | '3060'
   | '3060ti'
   | '3070'
   | '3080'
   | '3090'
   | 'darkhero'
   | 'rx6800'
+  | 'rx6700xt'
   | 'rx6800xt'
   | 'rx6900xt'
   | 'ryzen5600'
@@ -70,6 +72,8 @@ export type Model =
   | 'amd reference'
   | 'amp extreme holo'
   | 'amp holo'
+  | 'amp white'
+  | 'aorus elite'
   | 'aorus master'
   | 'aorus master type-c'
   | 'aorus xtreme'
@@ -88,6 +92,9 @@ export type Model =
   | 'eagle oc'
   | 'eagle'
   | 'ekwb'
+  | 'epic x'
+  | 'ex gamer'
+  | 'ex oc'
   | 'founders edition'
   | 'ftw3'
   | 'ftw3 black'
@@ -102,26 +109,41 @@ export type Model =
   | 'gaming pro'
   | 'gaming trio'
   | 'gaming x trio'
+  | 'gaming x'
   | 'gaming x3'
+  | 'ghost'
   | 'ghost oc'
-  | 'suprim x'
   | 'suprim'
+  | 'suprim x'
   | 'gaming'
   | 'hurricane'
   | 'ichill x2'
   | 'ichill x3'
+  | 'ichill x3 red'
   | 'ichill x4'
   | 'ichill frostbite'
   | 'igame advanced'
   | 'igame advanced oc'
   | 'igame ultra oc'
   | 'igame vulcan oc'
+  | 'jetstream'
+  | 'jetstream oc'
   | 'ko oc'
   | 'ko'
+  | 'master'
+  | 'merc'
+  | 'merc core'
+  | 'merc ultra'
   | 'nitro+'
   | 'nitro+ se'
+  | 'nitro+ oc'
+  | 'nitro+ oc se'
   | 'nitro oc se'
   | 'nitro oc'
+  | 'oc'
+  | 'pegasus'
+  | 'pegasus oc'
+  | 'phantom'
   | 'phantom gaming'
   | 'phantom gs'
   | 'phoenix gs oc'
@@ -130,17 +152,20 @@ export type Model =
   | 'ps5 console'
   | 'ps5 digital'
   | 'pulse'
+  | 'pulse oc'
   | 'red devil'
   | 'red dragon'
   | 'sg oc'
   | 'sg'
-  | 'merc'
+  | 'single fan'
+  | 'stormx oc'
   | 'strix lc'
   | 'strix oc'
   | 'strix'
   | 'strix oc white'
   | 'strix white'
   | 'taichi'
+  | 'taichi x oc'
   | 'trinity oc'
   | 'trinity'
   | 'tuf oc'
@@ -158,6 +183,7 @@ export type Model =
   | 'ventus 3x'
   | 'vision oc'
   | 'vision'
+  | 'x trio'
   | 'xbox series s'
   | 'xbox series x'
   | 'xc black'
@@ -169,7 +195,9 @@ export type Model =
   | 'xlr8 epic x'
   | 'xlr8 gaming'
   | 'xlr8 revel'
-  | 'xlr8 uprising';
+  | 'xlr8 uprising'
+  | 'xtreme'
+  | 'qick';
 
 export type Link = {
   brand: Brand;
@@ -184,11 +212,19 @@ export type Link = {
   url: string;
 };
 
+export type CaptchaHandlerElements = {
+  challenge: string;
+  input: string;
+  submit: string;
+  captureType?: string;
+};
+
 export type LabelQuery = Element[] | Element | string[];
 
 export type Labels = {
   bannedSeller?: LabelQuery;
   captcha?: LabelQuery;
+  captchaHandler?: CaptchaHandlerElements;
   container?: string;
   inStock?: LabelQuery;
   outOfStock?: LabelQuery;
@@ -216,6 +252,8 @@ export type Store = {
   linksBuilder?: {
     builder: (docElement: cheerio.Cheerio, series: Series) => Link[];
     ttl?: number;
+    waitUntil?: PuppeteerLifeCycleEvent;
+    waitForSelector?: string;
     urls: Array<{series: Series; url: string | string[]}>;
   };
   labels: Labels;
@@ -229,7 +267,7 @@ export type Store = {
    * 0 -> 399 inclusive.
    */
   successStatusCodes?: StatusCodeRangeArray;
-  waitUntil?: LoadEvent;
+  waitUntil?: PuppeteerLifeCycleEvent;
   minPageSleep?: number;
   maxPageSleep?: number;
 

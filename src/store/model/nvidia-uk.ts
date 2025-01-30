@@ -1,6 +1,6 @@
 import {Store} from './store';
 
-export const NvidiaGB: Store = {
+export const NvidiaUK: Store = {
   currency: '£',
   labels: {
     inStock: {
@@ -59,9 +59,9 @@ export const NvidiaGB: Store = {
       brand: 'nvidia',
       model: 'founders edition',
       series: '5090',
-      url: 'https://shop.nvidia.com/en-gb/geforce/store/gpu/?page=1&limit=9&locale=en-gb&category=GPU&gpu=RTX%205090&manufacturer=NVIDIA',
+      url: 'https://marketplace.nvidia.com/en-gb/consumer/graphics-cards/?locale=en-gb&page=1&limit=12&gpu=RTX%205090&manufacturer=NVIDIA',
     },
   ],
-  name: 'nvidia-gb',
+  name: 'nvidia-uk',
   country: 'UK',
 };

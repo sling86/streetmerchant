@@ -83,5 +83,9 @@
   },
   "volta": {
     "node": "16.18.0"
-  }
+  },
+  "trustedDependencies": [
+    "nodemon",
+    "top-user-agents"
+  ]
 }
